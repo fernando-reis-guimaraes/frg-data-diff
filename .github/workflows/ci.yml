@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: |
+          mkdir -p test-results
+          npm run test:unit -- --coverage --reporter=verbose --reporter=junit --outputFile.junit=test-results/unit-junit.xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-coverage
+          path: coverage/
+          retention-days: 30
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: test-results/unit-junit.xml
+          retention-days: 30
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: |
+          mkdir -p test-results
+          npm run test:integration -- --reporter=verbose --reporter=junit --outputFile.junit=test-results/integration-junit.xml
+        env:
+          PG_SOURCE_HOST: localhost
+          PG_SOURCE_PORT: 15432
+          PG_SOURCE_DB: testdb
+          PG_SOURCE_USER: testuser
+          PG_SOURCE_PASSWORD: testpassword
+          PG_DEST_HOST: localhost
+          PG_DEST_PORT: 15433
+          PG_DEST_DB: testdb
+          PG_DEST_USER: testuser
+          PG_DEST_PASSWORD: testpassword
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: test-results/integration-junit.xml
+          retention-days: 30

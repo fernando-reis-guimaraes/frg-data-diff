@@ -1,0 +1,39 @@
+{
+  "name": "frg-data-diff",
+  "version": "2.0.0",
+  "description": "Safe PostgreSQL data diff and apply tooling. Compare data between two PostgreSQL databases and apply changes safely.",
+  "bin": "./dist/cli/root.js",
+  "scripts": {
+    "build": "tsc",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run test:unit",
+    "test": "npm run test:unit && npm run test:integration && npm run test:guided",
+    "test:unit": "./scripts/preserve-envrc.sh vitest run tests/unit",
+    "pretest:integration": "docker compose down -v --remove-orphans && docker compose up -d --wait",
+    "test:integration": "./scripts/preserve-envrc.sh vitest run tests/integration",
+    "posttest:integration": "docker compose down -v --remove-orphans",
+    "test:guided": "./guided-manual-tests/run-all.sh",
+    "typecheck": "tsc --noEmit",
+    "lint": "npx prettier --write ."
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "pg": "^8.11.0",
+    "yaml": "^2.9.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "@vitest/coverage-v8": "^3.1.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
