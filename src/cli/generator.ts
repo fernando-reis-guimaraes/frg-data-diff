@@ -345,6 +345,18 @@ async function main() {
     if (configExists) {
       const shouldUpdate = await confirmUpdateConfig();
       if (shouldUpdate) {
+        const date = new Date();
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, "0");
+        const dd = String(date.getDate()).padStart(2, "0");
+        const hh = String(date.getHours()).padStart(2, "0");
+        const min = String(date.getMinutes()).padStart(2, "0");
+        const ss = String(date.getSeconds()).padStart(2, "0");
+
+        const backupPath = `${configFilePath}~${yyyy}-${mm}-${dd}-${hh}${min}${ss}`;
+        fs.copyFileSync(configFilePath, backupPath);
+        console.log(`Backup of previous config saved to: ${backupPath}`);
+
         writeConfig(configFilePath, configToWrite);
         configWritten = true;
         configUpdatedThisRun = true;
@@ -1361,7 +1373,7 @@ function printResolvedPlan(
     console.log(
       "expanded pg triggers exclude tables: " +
         expandedPgTriggersExcludeTables.join(", "),
-      );
+    );
   }
   console.log("pg views output: " + resolved.pgViewsOutput);
   console.log("pg views: " + resolved.pgViews.join(", "));
