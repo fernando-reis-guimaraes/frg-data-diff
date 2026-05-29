@@ -84,6 +84,63 @@ describe("loadConfig", () => {
     expect(config.apply.destPgHost).toBe("prod-db.example.com");
   });
 
+  it("loads config files with line and block comments", () => {
+    const configPath = path.join(tmpDir, DEFAULT_CONFIG_FILENAME);
+    fs.writeFileSync(
+      configPath,
+      `{
+        // Config format marker
+        "format": "frg-data-diff-config/v1",
+        "generator": {
+          "sourcePgHost": "https://dev-db.example.com",
+          "sourcePgPort": 5432,
+          "sourcePgDatabase": "app",
+          "sourcePgUser": "app_user",
+          "sourcePgPassword": "pa//ss/*not-comment*/",
+          "sourcePgSsl": true,
+          /*
+           * Destination connection
+           */
+          "destPgHost": "prod-db.example.com",
+          "destPgPort": 5432,
+          "destPgDatabase": "app",
+          "destPgUser": "app_user",
+          "destPgPassword": "$PG_PASSWORD_PROD",
+          "destPgSsl": false,
+          "schema": "public",
+          "tables": ["my_table"],
+          "excludeTables": [],
+          "ignoreColumns": [],
+          "includeDeletes": true,
+          "skipMissingPk": false,
+          "output": "frg-data-diff.json",
+          "pretty": true
+        },
+        "apply": {
+          "destPgHost": "prod-db.example.com",
+          "destPgPort": 5432,
+          "destPgDatabase": "app",
+          "destPgUser": "app_user",
+          "destPgPassword": "$PG_PASSWORD_PROD",
+          "destPgSsl": false,
+          "input": "frg-data-diff.json",
+          "dryRun": true,
+          "applyInserts": true,
+          "applyUpdates": true,
+          "applyDeletes": false,
+          "conflictMode": "abort",
+          "insertMode": "strict",
+          "transaction": true
+        }
+      }`,
+    );
+
+    const config = loadConfig(configPath);
+    expect(config.generator.sourcePgHost).toBe("https://dev-db.example.com");
+    expect(config.generator.sourcePgPassword).toBe("pa//ss/*not-comment*/");
+    expect(config.apply.destPgHost).toBe("prod-db.example.com");
+  });
+
   it("exits with code 1 on invalid JSON", () => {
     const configPath = path.join(tmpDir, DEFAULT_CONFIG_FILENAME);
     fs.writeFileSync(configPath, "not valid json {{{");

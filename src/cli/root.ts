@@ -48,6 +48,7 @@ Config file:
   .frg-data-diff.config.json
 
   Commands look for .frg-data-diff.config.json in the current directory.
+  The config file accepts // line comments and /* block comments */.
   Create it by running a command with --config or with CLI args on first run.
 
 How to generate a diff:

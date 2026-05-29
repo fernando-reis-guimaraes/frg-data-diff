@@ -31,7 +31,7 @@ export function loadConfig(configPath: string): Config {
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(stripJsonComments(raw));
   } catch (err) {
     console.error(`Failed to parse config file as JSON: ${configPath}`);
     if (err instanceof Error) console.error(err.message);
@@ -47,4 +47,93 @@ export function loadConfig(configPath: string): Config {
   }
 
   return result.data;
+}
+
+export function stripJsonComments(input: string): string {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = 0; index < input.length; index++) {
+    const char = input[index];
+    const next = input[index + 1];
+
+    if (inLineComment) {
+      if (isLineBreak(char)) {
+        inLineComment = false;
+        output += char;
+      } else {
+        output += " ";
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && next === "/") {
+        output += "  ";
+        index++;
+        inBlockComment = false;
+        continue;
+      }
+
+      if (isLineBreak(char)) {
+        output += char;
+      } else {
+        output += " ";
+      }
+      continue;
+    }
+
+    if (inString) {
+      output += char;
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      output += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      output += "  ";
+      index++;
+      inLineComment = true;
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      output += "  ";
+      index++;
+      inBlockComment = true;
+      continue;
+    }
+
+    output += char;
+  }
+
+  return output;
+}
+
+function isLineBreak(char: string): boolean {
+  if (char === "\n") {
+    return true;
+  }
+  return char === "\r";
 }

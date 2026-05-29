@@ -86,6 +86,8 @@ npx frg-data-diff pg-views --output frg-views-diff.sql
 
 Commands look for this file in the current working directory.
 
+The config file is JSON with comments: `// line comments` and `/* block comments */` are accepted. Other JSON rules still apply, including no trailing commas.
+
 ### Committing the config file
 
 **Do commit** `.frg-data-diff.config.json` to version control.
