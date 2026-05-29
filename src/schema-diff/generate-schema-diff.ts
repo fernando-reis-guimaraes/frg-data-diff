@@ -132,7 +132,7 @@ export async function generateSchemaDiff(
   }
 
   return {
-    format: "postgres-schema-diff-json/v1",
+    format: "frg-schema-diff-json/v1",
     generatedAt: new Date().toISOString(),
     source: { schema: options.schema },
     dest: { schema: options.schema },

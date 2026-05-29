@@ -51,7 +51,7 @@ const schemaDiffSummarySchema = z.object({
 });
 
 export const schemaDiffJsonSchema = z.object({
-  format: z.literal("postgres-schema-diff-json/v1"),
+  format: z.literal("frg-schema-diff-json/v1"),
   generatedAt: z.string(),
   source: z.object({ schema: z.string() }),
   dest: z.object({ schema: z.string() }),

@@ -289,6 +289,41 @@ export async function promptForGeneratorOptions(
     );
 
     console.log("");
+    const pgViews = await promptOptionalList(
+      'PostgreSQL views to compare (comma-separated, "*" supported; blank for all)',
+      defaults.pgViews,
+      ask,
+      env,
+      envrcPath,
+      onEnvrcWrite,
+    );
+    const pgViewsExclude = await promptOptionalList(
+      'PostgreSQL views to exclude (comma-separated, "*" supported)',
+      defaults.pgViewsExclude,
+      ask,
+      env,
+      envrcPath,
+      onEnvrcWrite,
+    );
+    const pgViewsOutput = await promptConfigString(
+      "PostgreSQL views output file",
+      defaults.pgViewsOutput,
+      ask,
+      env,
+      envrcPath,
+      {},
+      onEnvrcWrite,
+    );
+    const generatePgViews = await promptBoolean(
+      "Generate a PostgreSQL views diff? (SQL script)",
+      defaults.generatePgViews ?? true,
+      ask,
+      env,
+      envrcPath,
+      onEnvrcWrite,
+    );
+
+    console.log("");
     const pretty = await promptBoolean(
       "Pretty-print JSON",
       defaults.pretty,
@@ -318,15 +353,19 @@ export async function promptForGeneratorOptions(
       schemaDiffExcludeTables,
       pgTriggersTables,
       pgTriggersExcludeTables,
+      pgViews,
+      pgViewsExclude,
       ignoreColumns,
       includeDeletes,
       skipMissingPk,
       output,
       schemaDiffOutput,
       pgTriggersOutput,
+      pgViewsOutput,
       pretty,
       generateSql,
       generatePgTriggers,
+      generatePgViews,
     };
   } finally {
     promptSession?.close();

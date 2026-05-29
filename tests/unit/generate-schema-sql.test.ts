@@ -6,7 +6,7 @@ import {
 import type { SchemaDiffJson } from "../../src/schema-diff/schema-diff-schema";
 
 const schemaDiff: SchemaDiffJson = {
-  format: "postgres-schema-diff-json/v1",
+  format: "frg-schema-diff-json/v1",
   generatedAt: "2026-05-13T00:00:00.000Z",
   source: { schema: "public" },
   dest: { schema: "public" },

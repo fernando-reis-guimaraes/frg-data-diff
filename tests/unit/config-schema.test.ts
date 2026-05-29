@@ -25,6 +25,8 @@ const validGeneratorConfig = {
   schemaDiffExcludeTables: ["directus_revisions"],
   pgTriggersTables: ["directus_flows"],
   pgTriggersExcludeTables: ["directus_sessions"],
+  pgViews: ["directus_view"],
+  pgViewsExclude: ["directus_legacy_view"],
   ignoreColumns: [],
   tablesWhereDataFilters: {
     directus_presets: '"user" IS NULL',
@@ -34,6 +36,7 @@ const validGeneratorConfig = {
   output: "frg-data-diff.json",
   schemaDiffOutput: "frg-schema-diff.json",
   pgTriggersOutput: "frg-triggers-diff.sql",
+  pgViewsOutput: "frg-views-diff.sql",
   pretty: true,
   generateSql: true,
 };
@@ -143,6 +146,8 @@ describe("generatorConfigSchema", () => {
       schemaDiffExcludeTables: ["$schemaExcludedTables"],
       pgTriggersTables: ["$pgTriggersTableFilter"],
       pgTriggersExcludeTables: ["$pgTriggersExcludedTables"],
+      pgViews: ["$pgViewsFilter"],
+      pgViewsExclude: ["$pgViewsExcluded"],
       ignoreColumns: ["$ignoredColumns"],
     });
     expect(result.success).toBe(true);
@@ -154,6 +159,7 @@ describe("generatorConfigSchema", () => {
       excludeTables: null,
       schemaDiffExcludeTables: null,
       pgTriggersExcludeTables: null,
+      pgViewsExclude: null,
       ignoreColumns: null,
     });
     expect(result.success).toBe(true);
@@ -199,8 +205,10 @@ describe("generatorConfigSchema", () => {
       output: "$outputFile",
       schemaDiffOutput: "$schemaOutputFile",
       pgTriggersOutput: "$pgTriggersOutputFile",
+      pgViewsOutput: "$pgViewsOutputFile",
       pretty: "$prettyJson",
       generateSql: "$generateSql",
+      generatePgViews: "$generatePgViews",
     });
     expect(result.success).toBe(true);
   });

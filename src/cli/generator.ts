@@ -31,6 +31,11 @@ import {
   resolveTablePatternsFromTableLists,
   type ResolvedTablePatterns,
 } from "../db/metadata";
+import {
+  listPgViews,
+  resolvePgViewPatternsFromViewLists,
+  type ResolvedPgViewPatterns,
+} from "../db/pg-views";
 import { generateDiff } from "../diff/generate-diff";
 import { buildYamlOutputPath, writeYamlFile } from "../diff/write-diff-yaml";
 import {
@@ -105,6 +110,11 @@ program
     "--pg-triggers-exclude-table <table...>",
     "Table(s) to exclude from PostgreSQL triggers diff",
   )
+  .option("--pg-view <view...>", "View(s) to include for PostgreSQL views diff")
+  .option(
+    "--pg-view-exclude <view...>",
+    "View(s) to exclude from PostgreSQL views diff",
+  )
   .option(
     "--ignore-column <column...>",
     "Column(s) to ignore during comparison",
@@ -123,6 +133,7 @@ program
     "--pg-triggers-output <file>",
     "Output PostgreSQL triggers diff file path",
   )
+  .option("--pg-views-output <file>", "Output PostgreSQL views diff file path")
   .option("--pretty", "Pretty-print the output JSON")
   .option(
     "--generate-pg-triggers",
@@ -132,6 +143,8 @@ program
     "--no-generate-pg-triggers",
     "Do not generate a PostgreSQL triggers and functions diff",
   )
+  .option("--generate-pg-views", "Generate a PostgreSQL views diff")
+  .option("--no-generate-pg-views", "Do not generate a PostgreSQL views diff")
   .option("--verbose", "Enable verbose logging")
   .option("--config <file>", "Path to config file", DEFAULT_CONFIG_FILENAME)
   .option("--wizard <value>", "Force the interactive wizard (use true or 1)")
@@ -185,14 +198,18 @@ async function main() {
     schemaDiffExcludeTables: opts["schemaDiffExcludeTable"],
     pgTriggersTables: opts["pgTriggersTable"],
     pgTriggersExcludeTables: opts["pgTriggersExcludeTable"],
+    pgViews: opts["pgView"],
+    pgViewsExclude: opts["pgViewExclude"],
     ignoreColumns: opts["ignoreColumn"],
     includeDeletes: opts["includeDeletes"] ? true : undefined,
     skipMissingPk: opts["skipMissingPk"] ? true : undefined,
     output: opts["output"],
     schemaDiffOutput: opts["schemaDiffOutput"],
     pgTriggersOutput: opts["pgTriggersOutput"],
+    pgViewsOutput: opts["pgViewsOutput"],
     pretty: opts["pretty"] ? true : undefined,
     generatePgTriggers: normalizeOptionalBoolean(opts["generatePgTriggers"]),
+    generatePgViews: normalizeOptionalBoolean(opts["generatePgViews"]),
     verbose: opts["verbose"] ? true : undefined,
   };
 
@@ -239,6 +256,13 @@ async function main() {
     cleanCliArgs.pgTriggersExcludeTables === null
       ? null
       : [...resolved.pgTriggersExcludeTables];
+  const requestedPgViews = [...resolved.pgViews];
+  let requestedPgViewsExclude: string[] | null;
+  if (cleanCliArgs.pgViewsExclude === null) {
+    requestedPgViewsExclude = null;
+  } else {
+    requestedPgViewsExclude = [...resolved.pgViewsExclude];
+  }
   const requestedIgnoreColumns =
     cleanCliArgs.ignoreColumns === null ? null : [...resolved.ignoreColumns];
   const runtimeBaseResolved = resolveRuntimeGeneratorOptions({
@@ -249,6 +273,8 @@ async function main() {
     schemaDiffExcludeTables: resolved.schemaDiffExcludeTables,
     pgTriggersTables: requestedPgTriggersTables,
     pgTriggersExcludeTables: resolved.pgTriggersExcludeTables,
+    pgViews: requestedPgViews,
+    pgViewsExclude: resolved.pgViewsExclude,
     ignoreColumns: resolved.ignoreColumns,
   });
 
@@ -301,6 +327,8 @@ async function main() {
       schemaDiffExcludeTables: requestedSchemaDiffExcludeTables,
       pgTriggersTables: requestedPgTriggersTables,
       pgTriggersExcludeTables: requestedPgTriggersExcludeTables,
+      pgViews: requestedPgViews,
+      pgViewsExclude: requestedPgViewsExclude,
       ignoreColumns: requestedIgnoreColumns,
     },
     resolveApplyOptions(loadedConfig?.apply, {
@@ -419,9 +447,10 @@ async function main() {
     const expandedTables = resolvedTablePatterns.data;
     const expandedSchemaDiffTables = resolvedTablePatterns.schema;
     const expandedPgTriggersTables = resolvedTablePatterns.pgTriggers;
+    const expandedPgViews = resolvedTablePatterns.pgViews;
 
     console.log(
-      `Resolved ${expandedTables.tables.length} data table(s), ${expandedSchemaDiffTables.tables.length} schema table(s), and ${expandedPgTriggersTables.tables.length} PostgreSQL trigger table(s).`,
+      `Resolved ${expandedTables.tables.length} data table(s), ${expandedSchemaDiffTables.tables.length} schema table(s), ${expandedPgTriggersTables.tables.length} PostgreSQL trigger table(s), and ${expandedPgViews.views.length} PostgreSQL view(s).`,
     );
 
     const runtimeResolved: RuntimeGeneratorOptions = {
@@ -432,6 +461,8 @@ async function main() {
       schemaDiffExcludeTables: expandedSchemaDiffTables.excludedTables,
       pgTriggersTables: expandedPgTriggersTables.tables,
       pgTriggersExcludeTables: expandedPgTriggersTables.excludedTables,
+      pgViews: expandedPgViews.views,
+      pgViewsExclude: expandedPgViews.excludedViews,
     };
 
     const logProgress = (message: string) => {
@@ -453,13 +484,15 @@ async function main() {
       runtimeResolved.schemaDiffExcludeTables,
       runtimeResolved.pgTriggersTables,
       runtimeResolved.pgTriggersExcludeTables,
+      runtimeResolved.pgViews,
+      runtimeResolved.pgViewsExclude,
       sourceConnection,
       destConnection,
     );
 
     console.log("Connecting to databases...");
     console.log(
-      `Comparing ${runtimeResolved.tables.length} data table(s), ${runtimeResolved.schemaDiffTables.length} schema table(s), and ${runtimeResolved.pgTriggersTables.length} PostgreSQL trigger table(s)...`,
+      `Comparing ${runtimeResolved.tables.length} data table(s), ${runtimeResolved.schemaDiffTables.length} schema table(s), ${runtimeResolved.pgTriggersTables.length} PostgreSQL trigger table(s), and ${runtimeResolved.pgViews.length} PostgreSQL view(s)...`,
     );
     console.log("Starting data and schema diff generation...");
 
@@ -501,6 +534,7 @@ async function main() {
       buildSchemaSqlOutputPath(runtimeResolved.schemaDiffOutput),
     );
     const pgTriggersOutputPath = path.resolve(runtimeResolved.pgTriggersOutput);
+    const pgViewsOutputPath = path.resolve(runtimeResolved.pgViewsOutput);
 
     console.log("Writing JSON and YAML diff artifacts...");
 
@@ -527,6 +561,7 @@ async function main() {
 
     let sqlGenerated = false;
     let pgTriggersSqlGenerated = false;
+    let pgViewsSqlGenerated = false;
 
     console.log("\nData diff summary:");
     console.log(`  Tables compared: ${diff.summary.tablesCompared}`);
@@ -647,6 +682,86 @@ async function main() {
       }
     }
 
+    let shouldGeneratePgViews = false;
+    if (runtimeResolved.generatePgViews !== undefined) {
+      shouldGeneratePgViews = runtimeResolved.generatePgViews;
+    } else if (shouldAskInteractiveQuestion(opts["yes"])) {
+      shouldGeneratePgViews = await confirmProceed(
+        "\nGenerate a PostgreSQL views diff? (SQL script) [yes]: ",
+        true,
+      );
+    }
+
+    if (shouldGeneratePgViews) {
+      console.log("\nGenerating PostgreSQL views diff...");
+      const pgViewsArgs: string[] = [];
+      if (configWritten) {
+        pgViewsArgs.push(
+          "--config",
+          path.relative(process.cwd(), configFilePath) ||
+            DEFAULT_CONFIG_FILENAME,
+        );
+      } else {
+        // Pass all resolved args down manually if no config is available.
+        // This is a rare edge case, usually we write the config.
+        pgViewsArgs.push("--source-pg-host", resolved.sourcePgHost);
+        pgViewsArgs.push("--source-pg-port", String(resolved.sourcePgPort));
+        pgViewsArgs.push("--source-pg-database", resolved.sourcePgDatabase);
+        pgViewsArgs.push("--source-pg-user", resolved.sourcePgUser);
+        if (isEnvReference(resolved.sourcePgPassword)) {
+          pgViewsArgs.push(
+            "--source-pg-password-env",
+            resolved.sourcePgPassword,
+          );
+        }
+        if (resolved.sourcePgSsl) {
+          pgViewsArgs.push("--source-pg-ssl");
+        } else {
+          pgViewsArgs.push("--no-source-pg-ssl");
+        }
+
+        pgViewsArgs.push("--dest-pg-host", resolved.destPgHost);
+        pgViewsArgs.push("--dest-pg-port", String(resolved.destPgPort));
+        pgViewsArgs.push("--dest-pg-database", resolved.destPgDatabase);
+        pgViewsArgs.push("--dest-pg-user", resolved.destPgUser);
+        if (isEnvReference(resolved.destPgPassword)) {
+          pgViewsArgs.push("--dest-pg-password-env", resolved.destPgPassword);
+        }
+        if (resolved.destPgSsl) {
+          pgViewsArgs.push("--dest-pg-ssl");
+        } else {
+          pgViewsArgs.push("--no-dest-pg-ssl");
+        }
+
+        pgViewsArgs.push("--schema", resolved.schema);
+        for (const viewName of runtimeResolved.pgViews) {
+          pgViewsArgs.push("--view", viewName);
+        }
+        for (const viewName of runtimeResolved.pgViewsExclude) {
+          pgViewsArgs.push("--exclude-view", viewName);
+        }
+        pgViewsArgs.push("--output", runtimeResolved.pgViewsOutput);
+      }
+
+      if (runtimeResolved.verbose) {
+        pgViewsArgs.push("--verbose");
+      }
+
+      const pgViewsCommandPath = path.join(__dirname, "pg-views.js");
+      const res = spawnSync(
+        process.execPath,
+        [pgViewsCommandPath, ...pgViewsArgs],
+        {
+          stdio: "inherit",
+        },
+      );
+      if (res.status !== 0) {
+        console.error("Warning: pg-views diff generation failed.");
+      } else {
+        pgViewsSqlGenerated = true;
+      }
+    }
+
     console.log(
       "\nReview the data diff and schema SQL carefully before applying anything.",
     );
@@ -679,6 +794,9 @@ async function main() {
       console.log(
         `PostgreSQL triggers SQL written to: ${pgTriggersOutputPath}`,
       );
+    }
+    if (pgViewsSqlGenerated) {
+      console.log(`PostgreSQL views SQL written to: ${pgViewsOutputPath}`);
     }
     console.log("");
   } finally {
@@ -776,6 +894,7 @@ interface ResolvedGeneratorTablePatternGroups {
   data: ResolvedTablePatterns;
   schema: ResolvedTablePatterns;
   pgTriggers: ResolvedTablePatterns;
+  pgViews: ResolvedPgViewPatterns;
 }
 
 type TablePatternAvailability = "common" | "either";
@@ -813,6 +932,18 @@ async function resolveGeneratorTablePatterns(
       "destination",
       logProgress,
     );
+    const sourceViews = await listPgViewsWithProgress(
+      sourceClient,
+      resolved.schema,
+      "source",
+      logProgress,
+    );
+    const destViews = await listPgViewsWithProgress(
+      destClient,
+      resolved.schema,
+      "destination",
+      logProgress,
+    );
 
     const data = resolveTablePatternGroup(
       "data",
@@ -841,8 +972,16 @@ async function resolveGeneratorTablePatterns(
       "common",
       logProgress,
     );
+    const pgViews = resolveViewPatternGroup(
+      "PostgreSQL view",
+      sourceViews,
+      destViews,
+      resolved.pgViews,
+      resolved.pgViewsExclude,
+      logProgress,
+    );
 
-    return { data, schema, pgTriggers };
+    return { data, schema, pgTriggers, pgViews };
   } finally {
     if (destClient !== undefined) {
       destClient.release();
@@ -877,6 +1016,28 @@ async function listTablesWithProgress(
   );
 
   return tables;
+}
+
+async function listPgViewsWithProgress(
+  client: PoolClient,
+  schema: string,
+  databaseLabel: string,
+  logProgress: (message: string) => void,
+): Promise<string[]> {
+  const views = await runLoggedAsyncStep(
+    `scanning ${databaseLabel} views in schema "${schema}"`,
+    () => listPgViews(client, schema),
+    logProgress,
+  );
+
+  logProgress(
+    `[view resolution] ${databaseLabel} database returned ${views.length} view(s).`,
+  );
+  logProgress(
+    `[view resolution] ${databaseLabel} view preview: ${formatStringList(views)}`,
+  );
+
+  return views;
 }
 
 function resolveTablePatternGroup(
@@ -934,6 +1095,54 @@ function resolveTablePatternGroup(
   } catch (error) {
     console.error(
       `[table resolution] failed to resolve ${label} patterns after ${formatDuration(
+        Date.now() - startedAt,
+      )}.`,
+    );
+    throw error;
+  }
+}
+
+function resolveViewPatternGroup(
+  label: string,
+  sourceViews: string[],
+  destViews: string[],
+  includePatterns: string[],
+  excludePatterns: string[],
+  logProgress: (message: string) => void,
+): ResolvedPgViewPatterns {
+  const startedAt = Date.now();
+  logProgress(`[view resolution] resolving ${label} patterns.`);
+  logProgress(
+    `[view resolution] ${label} include patterns: ${formatStringList(includePatterns)}`,
+  );
+  logProgress(
+    `[view resolution] ${label} exclude patterns: ${formatStringList(excludePatterns)}`,
+  );
+
+  try {
+    const result = resolvePgViewPatternsFromViewLists(
+      sourceViews,
+      destViews,
+      includePatterns,
+      excludePatterns,
+    );
+
+    logProgress(
+      `[view resolution] resolved ${label} patterns in ${formatDuration(Date.now() - startedAt)}.`,
+    );
+    logProgress(
+      `[view resolution] ${label} views: ${formatStringList(result.views)}`,
+    );
+    if (result.excludedViews.length > 0) {
+      logProgress(
+        `[view resolution] ${label} excluded views: ${formatStringList(result.excludedViews)}`,
+      );
+    }
+
+    return result;
+  } catch (error) {
+    console.error(
+      `[view resolution] failed to resolve ${label} patterns after ${formatDuration(
         Date.now() - startedAt,
       )}.`,
     );
@@ -1031,6 +1240,8 @@ function printResolvedPlan(
   expandedSchemaDiffExcludeTables: string[],
   expandedPgTriggersTables: string[],
   expandedPgTriggersExcludeTables: string[],
+  expandedPgViews: string[],
+  expandedPgViewsExclude: string[],
   sourceConnection: {
     host: string;
     port: number;
@@ -1150,6 +1361,19 @@ function printResolvedPlan(
     console.log(
       "expanded pg triggers exclude tables: " +
         expandedPgTriggersExcludeTables.join(", "),
+      );
+  }
+  console.log("pg views output: " + resolved.pgViewsOutput);
+  console.log("pg views: " + resolved.pgViews.join(", "));
+  if (expandedPgViews.join(",") !== resolved.pgViews.join(",")) {
+    console.log("expanded pg views: " + expandedPgViews.join(", "));
+  }
+  if (resolved.pgViewsExclude.length > 0) {
+    console.log("pg views exclude: " + resolved.pgViewsExclude.join(", "));
+  }
+  if (expandedPgViewsExclude.join(",") !== resolved.pgViewsExclude.join(",")) {
+    console.log(
+      "expanded pg views exclude: " + expandedPgViewsExclude.join(", "),
     );
   }
   console.log("include deletes: " + resolved.includeDeletes);
@@ -1157,6 +1381,9 @@ function printResolvedPlan(
   console.log("generate sql: " + (resolved.generateSql ?? "interactive"));
   console.log(
     "generate pg triggers: " + (resolved.generatePgTriggers ?? "interactive"),
+  );
+  console.log(
+    "generate pg views: " + (resolved.generatePgViews ?? "interactive"),
   );
 }
 
@@ -1184,14 +1411,19 @@ function hasAnyGeneratorArgs(argv: string[]): boolean {
     "--schema-diff-exclude-table",
     "--pg-triggers-table",
     "--pg-triggers-exclude-table",
+    "--pg-view",
+    "--pg-view-exclude",
     "--include-deletes",
     "--skip-missing-pk",
     "--output",
     "--schema-diff-output",
     "--pg-triggers-output",
+    "--pg-views-output",
     "--pretty",
     "--generate-pg-triggers",
     "--no-generate-pg-triggers",
+    "--generate-pg-views",
+    "--no-generate-pg-views",
     "--verbose",
     "--config",
     "--wizard",

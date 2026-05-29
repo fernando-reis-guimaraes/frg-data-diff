@@ -25,12 +25,15 @@ const generatorOpts: ResolvedGeneratorOptions = {
   schemaDiffExcludeTables: ["legacy_schema_table"],
   pgTriggersTables: ["my_trigger_table"],
   pgTriggersExcludeTables: ["legacy_trigger_table"],
+  pgViews: ["my_view"],
+  pgViewsExclude: ["legacy_view"],
   ignoreColumns: [],
   includeDeletes: true,
   skipMissingPk: false,
   output: "frg-data-diff.json",
   schemaDiffOutput: "frg-schema-diff.json",
   pgTriggersOutput: "frg-triggers-diff.sql",
+  pgViewsOutput: "frg-views-diff.sql",
   pretty: true,
   generateSql: true,
   verbose: false,
@@ -94,11 +97,14 @@ describe("buildConfigFile", () => {
     expect(g["schemaDiffExcludeTables"]).toEqual(["legacy_schema_table"]);
     expect(g["pgTriggersTables"]).toEqual(["my_trigger_table"]);
     expect(g["pgTriggersExcludeTables"]).toEqual(["legacy_trigger_table"]);
+    expect(g["pgViews"]).toEqual(["my_view"]);
+    expect(g["pgViewsExclude"]).toEqual(["legacy_view"]);
     expect(g["includeDeletes"]).toBe(true);
     expect(g["sourcePgSsl"]).toBe(true);
     expect(g["destPgSsl"]).toBe(false);
     expect(g["schemaDiffOutput"]).toBe("frg-schema-diff.json");
     expect(g["pgTriggersOutput"]).toBe("frg-triggers-diff.sql");
+    expect(g["pgViewsOutput"]).toBe("frg-views-diff.sql");
     expect(g["generateSql"]).toBe(true);
   });
 
@@ -112,6 +118,8 @@ describe("buildConfigFile", () => {
         schemaDiffExcludeTables: ["*_relations"],
         pgTriggersTables: ["directus_flows"],
         pgTriggersExcludeTables: ["*_sessions"],
+        pgViews: ["directus_*_view"],
+        pgViewsExclude: ["*_legacy"],
       },
       applyOpts,
     ) as {
@@ -126,6 +134,8 @@ describe("buildConfigFile", () => {
     ]);
     expect(config.generator["pgTriggersTables"]).toEqual(["directus_flows"]);
     expect(config.generator["pgTriggersExcludeTables"]).toEqual(["*_sessions"]);
+    expect(config.generator["pgViews"]).toEqual(["directus_*_view"]);
+    expect(config.generator["pgViewsExclude"]).toEqual(["*_legacy"]);
   });
 
   it("writes empty arrays for null optional lists", () => {
@@ -135,6 +145,7 @@ describe("buildConfigFile", () => {
         excludeTables: null,
         schemaDiffExcludeTables: null,
         pgTriggersExcludeTables: null,
+        pgViewsExclude: null,
         ignoreColumns: null,
       },
       applyOpts,
@@ -145,6 +156,7 @@ describe("buildConfigFile", () => {
     expect(config.generator["excludeTables"]).toEqual([]);
     expect(config.generator["schemaDiffExcludeTables"]).toEqual([]);
     expect(config.generator["pgTriggersExcludeTables"]).toEqual([]);
+    expect(config.generator["pgViewsExclude"]).toEqual([]);
     expect(config.generator["ignoreColumns"]).toEqual([]);
   });
 

@@ -2,7 +2,7 @@
 
 > It compares row data between two PostgreSQL databases and safely applies changes.
 >
-> It also produces a review-only schema diff based on `information_schema`, with JSON/YAML artifacts plus SQL for manual execution.
+> It also produces review-only schema, trigger/function, and view SQL artifacts for manual execution.
 
 Safe PostgreSQL **data** diff and apply tooling, with companion PostgreSQL **schema** diff output for manual review. Compare data between two PostgreSQL databases and apply changes with strong safety guards.
 
@@ -23,6 +23,8 @@ npx frg-data-diff
 npx frg-data-diff generate
 npx frg-data-diff apply
 npx frg-data-diff sql
+npx frg-data-diff pg-triggers
+npx frg-data-diff pg-views
 ```
 
 ---
@@ -62,6 +64,22 @@ Reads a JSON diff file and writes a plain SQL script for manual review and execu
 npx frg-data-diff sql --input frg-data-diff.json --output frg-data-diff.sql
 ```
 
+### `frg-data-diff pg-triggers`
+
+Compares PostgreSQL triggers and functions and writes a SQL diff script.
+
+```bash
+npx frg-data-diff pg-triggers --output frg-triggers-diff.sql
+```
+
+### `frg-data-diff pg-views`
+
+Compares regular and materialized view definitions and writes a SQL diff script.
+
+```bash
+npx frg-data-diff pg-views --output frg-views-diff.sql
+```
+
 ---
 
 ## Configuration File: `.frg-data-diff.config.json`
@@ -86,11 +104,13 @@ Generator list fields also support `$ENV_VAR` entries:
 - `schemaDiffExcludeTables`
 - `pgTriggersTables`
 - `pgTriggersExcludeTables`
+- `pgViews`
+- `pgViewsExclude`
 - `ignoreColumns`
 
 When used in those list fields, the environment variable value is parsed as a comma-separated list at runtime.
 
-Data, schema diff, and PostgreSQL trigger table filters are independent. If a schema or trigger table/exclude field is omitted, it defaults to an empty list and does not inherit from `tables` or `excludeTables`.
+Data, schema diff, PostgreSQL trigger, and PostgreSQL view filters are independent. Schema and trigger include filters inherit `tables` when omitted. View include filters default to all views when omitted.
 
 In the interactive wizard, pressing Enter keeps the displayed default. For optional list fields, type `none` to clear the value; the config stores that explicit clear as an empty array.
 
@@ -121,6 +141,9 @@ In the interactive wizard, pressing Enter keeps the displayed default. For optio
     "pgTriggersTables": ["my_table"],
     "pgTriggersExcludeTables": [],
     "pgTriggersOutput": "frg-triggers-diff.sql",
+    "pgViews": ["*"],
+    "pgViewsExclude": [],
+    "pgViewsOutput": "frg-views-diff.sql",
     "ignoreColumns": ["created_at", "updated_at"],
     "includeDeletes": true,
     "skipMissingPk": false,
@@ -256,6 +279,13 @@ Key options:
 | `--table`                  | Table(s) or `*` patterns to include (repeatable)      |
 | `--exclude-table`          | Table(s) or `*` patterns to skip (repeatable)         |
 | `--ignore-column`          | Column(s) to ignore during comparison (repeatable)    |
+| `--pg-triggers-table`      | Table(s) for trigger/function diff                    |
+| `--pg-triggers-output`     | Output path for PostgreSQL trigger/function diff SQL  |
+| `--generate-pg-triggers`   | Generate PostgreSQL trigger/function diff SQL         |
+| `--pg-view`                | View(s) or `*` patterns for view DDL diff             |
+| `--pg-view-exclude`        | View(s) or `*` patterns to skip in view DDL diff      |
+| `--pg-views-output`        | Output path for PostgreSQL view diff SQL              |
+| `--generate-pg-views`      | Generate PostgreSQL view diff SQL from `generate`     |
 | `--include-deletes`        | Generate delete entries for rows only in dest         |
 | `--skip-missing-pk`        | Skip tables without a primary key instead of failing  |
 | `--output`                 | Output diff file path (default: `frg-data-diff.json`) |
@@ -372,6 +402,8 @@ export DIRECTUS_TABLES="directus_*, custom_table"
 export DIRECTUS_EXCLUDES="directus_activity, directus_sessions"
 export DIRECTUS_PG_TRIGGER_TABLES="directus_flows, directus_operations"
 export DIRECTUS_PG_TRIGGER_EXCLUDES="directus_sessions"
+export DIRECTUS_PG_VIEWS="directus_*_view, custom_view"
+export DIRECTUS_PG_VIEW_EXCLUDES="legacy_*"
 export DIRECTUS_IGNORED_COLUMNS="created_at, updated_at"
 ```
 
@@ -383,6 +415,9 @@ export DIRECTUS_IGNORED_COLUMNS="created_at, updated_at"
     "pgTriggersTables": ["$DIRECTUS_PG_TRIGGER_TABLES"],
     "pgTriggersExcludeTables": ["$DIRECTUS_PG_TRIGGER_EXCLUDES"],
     "pgTriggersOutput": "frg-triggers-diff.sql",
+    "pgViews": ["$DIRECTUS_PG_VIEWS"],
+    "pgViewsExclude": ["$DIRECTUS_PG_VIEW_EXCLUDES"],
+    "pgViewsOutput": "frg-views-diff.sql",
     "ignoreColumns": ["$DIRECTUS_IGNORED_COLUMNS"]
   }
 }
@@ -400,7 +435,7 @@ export DIRECTUS_IGNORED_COLUMNS="created_at, updated_at"
 - **dryRun defaults to true** — no mutations without `--execute`.
 - **Transaction by default** — all changes in a single transaction; rolled back on failure in `abort` mode.
 - **Generated columns are never written**.
-- **Schema is never mutated**.
+- **Data apply never mutates schema** — generated schema, trigger, and view SQL is review-only and must be executed manually.
 
 ---
 
@@ -479,6 +514,9 @@ For publishing Directus configuration data from development to production:
     "pgTriggersTables": ["directus_flows", "directus_operations"],
     "pgTriggersExcludeTables": [],
     "pgTriggersOutput": "frg-triggers-diff.sql",
+    "pgViews": ["directus_*_view"],
+    "pgViewsExclude": [],
+    "pgViewsOutput": "frg-views-diff.sql",
     "ignoreColumns": ["created_at", "updated_at"],
     "includeDeletes": true,
     "skipMissingPk": false,
@@ -546,7 +584,7 @@ npx frg-data-diff apply --execute --apply-deletes
 - Schema diff (table creation, column changes, index changes) — use a dedicated schema migration tool.
 - Cross-schema comparisons within a single call (one schema per run).
 - Tables without primary keys (use `--skip-missing-pk` to skip them).
-- Views, materialized views, foreign tables.
+- Foreign tables.
 - Streaming of very large tables — v1 loads each table into memory. For huge tables, process in smaller table batches.
 - PostgreSQL pseudo-types and internal-only types as table columns.
 - Multiple databases in a single run — run the tool once per database pair.
@@ -617,6 +655,7 @@ frg-data-diff sql --help
 4. **No schema migration**: This tool does not create tables, add columns, or change indexes.
 5. **Single schema per run**: All tables must be in the same schema.
 6. **Env var references use shell-style names**: `$ENV_VAR`, `$envVar`, and `$env_var` are all valid.
+7. **View SQL scope**: View diffs compare definitions from PostgreSQL catalog metadata. Ownership, grants, comments, and materialized-view indexes are not recreated.
 
 ---
 

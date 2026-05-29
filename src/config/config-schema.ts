@@ -70,6 +70,8 @@ export const generatorConfigSchema = z.object({
   schemaDiffExcludeTables: z.array(envCapableListItem).nullable().optional(),
   pgTriggersTables: z.array(envCapableListItem).optional(),
   pgTriggersExcludeTables: z.array(envCapableListItem).nullable().optional(),
+  pgViews: z.array(envCapableListItem).optional(),
+  pgViewsExclude: z.array(envCapableListItem).nullable().optional(),
   ignoreColumns: z.array(envCapableListItem).nullable().default([]),
   tablesWhereDataFilters: tableWhereDataFilters.optional(),
   includeDeletes: envCapableBoolean.default(true),
@@ -77,9 +79,11 @@ export const generatorConfigSchema = z.object({
   output: envCapableString.default("frg-data-diff.json"),
   schemaDiffOutput: envCapableString.optional(),
   pgTriggersOutput: envCapableString.optional(),
+  pgViewsOutput: envCapableString.optional(),
   pretty: envCapableBoolean.default(true),
   generateSql: envCapableBoolean.optional(),
   generatePgTriggers: envCapableBoolean.optional(),
+  generatePgViews: envCapableBoolean.optional(),
 });
 
 export const applyConfigSchema = z.object({

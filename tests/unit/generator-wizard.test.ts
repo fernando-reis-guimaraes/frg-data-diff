@@ -25,14 +25,18 @@ const defaults: ResolvedGeneratorOptions = {
   schemaDiffExcludeTables: [],
   pgTriggersTables: [],
   pgTriggersExcludeTables: [],
+  pgViews: [],
+  pgViewsExclude: [],
   ignoreColumns: [],
   includeDeletes: true,
   skipMissingPk: true,
   output: "frg-data-diff.json",
   schemaDiffOutput: "frg-schema-diff.json",
   pgTriggersOutput: "frg-triggers-diff.sql",
+  pgViewsOutput: "frg-views-diff.sql",
   pretty: true,
   generateSql: undefined,
+  generatePgViews: undefined,
   verbose: false,
 };
 
@@ -66,6 +70,10 @@ describe("promptForGeneratorOptions", () => {
       "directus_operations",
       "triggers-diff.sql",
       "yes",
+      "directus_view_*",
+      "directus_legacy_view",
+      "views-diff.sql",
+      "yes",
       "yes",
     ]);
 
@@ -93,20 +101,24 @@ describe("promptForGeneratorOptions", () => {
       schemaDiffExcludeTables: ["directus_revisions"],
       pgTriggersTables: ["directus_flows"],
       pgTriggersExcludeTables: ["directus_operations"],
+      pgViews: ["directus_view_*"],
+      pgViewsExclude: ["directus_legacy_view"],
       ignoreColumns: ["updated_at"],
       includeDeletes: true,
       skipMissingPk: false,
       output: "diff.json",
       schemaDiffOutput: "schema-diff.json",
       pgTriggersOutput: "triggers-diff.sql",
+      pgViewsOutput: "views-diff.sql",
       pretty: true,
       generateSql: false,
       generatePgTriggers: true,
+      generatePgViews: true,
     });
   });
 
   it("uses defaults when the user presses enter", async () => {
-    const prompt = promptWithAnswers(Array(28).fill(""));
+    const prompt = promptWithAnswers(Array(32).fill(""));
     const configuredDefaults: ResolvedGeneratorOptions = {
       ...defaults,
       sourcePgHost: "$SOURCE_HOST",
@@ -125,6 +137,9 @@ describe("promptForGeneratorOptions", () => {
       pgTriggersTables: ["pg_trigger_table_a"],
       pgTriggersExcludeTables: ["pg_trigger_table_z"],
       pgTriggersOutput: "pg-triggers-diff.sql",
+      pgViews: ["pg_view_a"],
+      pgViewsExclude: ["pg_view_z"],
+      pgViewsOutput: "pg-views-diff.sql",
       ignoreColumns: ["updated_at"],
       schemaDiffOutput: "schema-diff.json",
     };
@@ -148,10 +163,14 @@ describe("promptForGeneratorOptions", () => {
     expect(options.pgTriggersTables).toEqual(["pg_trigger_table_a"]);
     expect(options.pgTriggersExcludeTables).toEqual(["pg_trigger_table_z"]);
     expect(options.pgTriggersOutput).toBe("pg-triggers-diff.sql");
+    expect(options.pgViews).toEqual(["pg_view_a"]);
+    expect(options.pgViewsExclude).toEqual(["pg_view_z"]);
+    expect(options.pgViewsOutput).toBe("pg-views-diff.sql");
     expect(options.ignoreColumns).toEqual(["updated_at"]);
     expect(options.schemaDiffOutput).toBe("schema-diff.json");
     expect(options.generateSql).toBe(true);
     expect(options.generatePgTriggers).toBe(true);
+    expect(options.generatePgViews).toBe(true);
   });
 
   it('clears optional lists when the user types "none"', async () => {
@@ -183,6 +202,10 @@ describe("promptForGeneratorOptions", () => {
       "none",
       "", // pg trigger output
       "", // generate pg triggers
+      "none",
+      "none",
+      "", // pg views output
+      "", // generate pg views
       "", // pretty
     ]);
     const configuredDefaults: ResolvedGeneratorOptions = {
@@ -205,6 +228,8 @@ describe("promptForGeneratorOptions", () => {
       schemaDiffExcludeTables: ["schema_table_z"],
       pgTriggersTables: ["pg_trigger_table_a"],
       pgTriggersExcludeTables: ["pg_trigger_table_z"],
+      pgViews: ["pg_view_a"],
+      pgViewsExclude: ["pg_view_z"],
       ignoreColumns: ["updated_at"],
       generateSql: true,
       schemaDiffOutput: "schema-diff.json",
@@ -219,6 +244,8 @@ describe("promptForGeneratorOptions", () => {
     expect(options.excludeTables).toEqual([]);
     expect(options.schemaDiffExcludeTables).toEqual([]);
     expect(options.pgTriggersExcludeTables).toEqual([]);
+    expect(options.pgViews).toEqual([]);
+    expect(options.pgViewsExclude).toEqual([]);
     expect(options.ignoreColumns).toEqual([]);
   });
 
@@ -302,6 +329,10 @@ describe("promptForGeneratorOptions", () => {
       "",
       "triggers-diff.sql",
       "no",
+      "pg_view_a",
+      "",
+      "views-diff.sql",
+      "yes",
       "yes",
     ]);
 
@@ -318,11 +349,13 @@ describe("promptForGeneratorOptions", () => {
     expect(options.tables).toEqual(["table_a"]);
     expect(options.schemaDiffTables).toEqual(["schema_table_a"]);
     expect(options.pgTriggersTables).toEqual(["pg_trigger_table_a"]);
+    expect(options.pgViews).toEqual(["pg_view_a"]);
     expect(options.includeDeletes).toBe(false);
     expect(options.skipMissingPk).toBe(false);
     expect(options.schemaDiffOutput).toBe("schema-diff.json");
     expect(options.generateSql).toBe(true);
     expect(options.generatePgTriggers).toBe(false);
+    expect(options.generatePgViews).toBe(true);
   });
 
   it("asks for missing $ENV_VAR values, writes .envrc, and loads them for the run", async () => {
@@ -370,6 +403,10 @@ describe("promptForGeneratorOptions", () => {
       "",
       "",
       "no",
+      "pg_view_a",
+      "",
+      "",
+      "no",
       "yes",
     ]);
 
@@ -387,6 +424,7 @@ describe("promptForGeneratorOptions", () => {
     expect(options.sourcePgSsl).toBe(true);
     expect(options.sourcePgDatabase).toBe("$SOURCE_DB");
     expect(options.schemaDiffTables).toEqual(["schema_table_a"]);
+    expect(options.pgViews).toEqual(["pg_view_a"]);
     expect(options.schemaDiffOutput).toBe("schema-diff.json");
     expect(options.generateSql).toBe(false);
     expect(env.SOURCE_HOST).toBe("source.local");
@@ -441,6 +479,10 @@ describe("promptForGeneratorOptions", () => {
       "",
       "",
       "no",
+      "pg_view_a",
+      "",
+      "",
+      "yes",
       "yes",
     ]);
 
@@ -456,6 +498,7 @@ describe("promptForGeneratorOptions", () => {
     expect(options.sourcePgDatabase).toBe("$sourceDb");
     expect(options.destPgPassword).toBe("$destPassword");
     expect(options.schemaDiffTables).toEqual(["schema_table_a"]);
+    expect(options.pgViews).toEqual(["pg_view_a"]);
     expect(options.schemaDiffOutput).toBe("schema-diff.json");
     expect(options.generateSql).toBe(true);
   });
@@ -506,6 +549,14 @@ describe("promptForGeneratorOptions", () => {
       "$pgTriggersOutput",
       "triggers-diff.sql",
       "yes",
+      "$pgViews",
+      "directus_views, custom_view",
+      "$pgViewsExcluded",
+      "directus_legacy_view",
+      "$pgViewsOutput",
+      "views-diff.sql",
+      "$generatePgViews",
+      "yes",
       "yes",
     ]);
 
@@ -521,10 +572,14 @@ describe("promptForGeneratorOptions", () => {
     expect(options.pgTriggersExcludeTables).toEqual([
       "$pgTriggersExcludedTables",
     ]);
+    expect(options.pgViews).toEqual(["$pgViews"]);
+    expect(options.pgViewsExclude).toEqual(["$pgViewsExcluded"]);
     expect(options.ignoreColumns).toEqual(["$ignoredColumns"]);
     expect(options.schemaDiffOutput).toBe("schema-diff.json");
     expect(options.pgTriggersOutput).toBe("$pgTriggersOutput");
+    expect(options.pgViewsOutput).toBe("$pgViewsOutput");
     expect(options.generateSql).toBe("$generateSql");
+    expect(options.generatePgViews).toBe("$generatePgViews");
     expect(env.diffTables).toBe("directus_*, custom_table");
     expect(env.excludedTables).toBe("directus_activity");
     expect(env.schemaDiffTables).toBe("directus_fields, directus_relations");
@@ -532,6 +587,10 @@ describe("promptForGeneratorOptions", () => {
     expect(env.pgTriggersTables).toBe("directus_flows, directus_operations");
     expect(env.pgTriggersExcludedTables).toBe("directus_sessions");
     expect(env.pgTriggersOutput).toBe("triggers-diff.sql");
+    expect(env.pgViews).toBe("directus_views, custom_view");
+    expect(env.pgViewsExcluded).toBe("directus_legacy_view");
+    expect(env.pgViewsOutput).toBe("views-diff.sql");
+    expect(env.generatePgViews).toBe("yes");
     expect(env.ignoredColumns).toBe("updated_at, created_at");
     expect(env.generateSql).toBe("no");
     expect(fs.readFileSync(envrcPath, "utf-8")).toContain(
@@ -554,6 +613,18 @@ describe("promptForGeneratorOptions", () => {
     );
     expect(fs.readFileSync(envrcPath, "utf-8")).toContain(
       "export pgTriggersOutput='triggers-diff.sql'",
+    );
+    expect(fs.readFileSync(envrcPath, "utf-8")).toContain(
+      "export pgViews='directus_views, custom_view'",
+    );
+    expect(fs.readFileSync(envrcPath, "utf-8")).toContain(
+      "export pgViewsExcluded='directus_legacy_view'",
+    );
+    expect(fs.readFileSync(envrcPath, "utf-8")).toContain(
+      "export pgViewsOutput='views-diff.sql'",
+    );
+    expect(fs.readFileSync(envrcPath, "utf-8")).toContain(
+      "export generatePgViews='yes'",
     );
     expect(fs.readFileSync(envrcPath, "utf-8")).toContain(
       "export ignoredColumns='updated_at, created_at'",
@@ -601,6 +672,10 @@ describe("promptForGeneratorOptions", () => {
       "pg_trigger_table_a",
       "",
       "triggers-diff.sql",
+      "yes",
+      "pg_view_a",
+      "",
+      "views-diff.sql",
       "yes",
       "yes",
     ]);

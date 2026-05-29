@@ -17,6 +17,7 @@ frg-schema-diff.yaml
 frg-schema-diff.sql
 
 frg-triggers-diff.sql
+frg-views-diff.sql
 
 *.tsbuildinfo
 guided-manual-tests/output/

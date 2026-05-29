@@ -31,6 +31,8 @@ export interface ResolvedGeneratorOptions {
   schemaDiffExcludeTables: string[];
   pgTriggersTables: string[];
   pgTriggersExcludeTables: string[];
+  pgViews: string[];
+  pgViewsExclude: string[];
   ignoreColumns: string[];
   tablesWhereDataFilters?: Record<string, string>;
   includeDeletes: boolean | string;
@@ -38,9 +40,11 @@ export interface ResolvedGeneratorOptions {
   output: string;
   schemaDiffOutput: string;
   pgTriggersOutput: string;
+  pgViewsOutput: string;
   pretty: boolean | string;
   generateSql?: boolean | string;
   generatePgTriggers?: boolean | string;
+  generatePgViews?: boolean | string;
   verbose: boolean;
 }
 
@@ -53,6 +57,7 @@ export interface RuntimeGeneratorOptions extends Omit<
   | "pretty"
   | "generateSql"
   | "generatePgTriggers"
+  | "generatePgViews"
 > {
   sourcePgSsl: boolean;
   destPgSsl: boolean;
@@ -61,6 +66,7 @@ export interface RuntimeGeneratorOptions extends Omit<
   pretty: boolean;
   generateSql?: boolean;
   generatePgTriggers?: boolean;
+  generatePgViews?: boolean;
 }
 
 export type OptionalListInput = string[] | null;
@@ -71,11 +77,13 @@ export type GeneratorOptionInput = Partial<
     | "excludeTables"
     | "schemaDiffExcludeTables"
     | "pgTriggersExcludeTables"
+    | "pgViewsExclude"
     | "ignoreColumns"
   > & {
     excludeTables: OptionalListInput;
     schemaDiffExcludeTables: OptionalListInput;
     pgTriggersExcludeTables: OptionalListInput;
+    pgViewsExclude: OptionalListInput;
     ignoreColumns: OptionalListInput;
   }
 >;
@@ -139,6 +147,8 @@ export function resolveGeneratorOptions(
     schemaDiffExcludeTables: [],
     pgTriggersTables: [],
     pgTriggersExcludeTables: [],
+    pgViews: [],
+    pgViewsExclude: [],
     ignoreColumns: [],
     tablesWhereDataFilters: {},
     includeDeletes: true,
@@ -146,6 +156,7 @@ export function resolveGeneratorOptions(
     output: "frg-data-diff.json",
     schemaDiffOutput: "frg-schema-diff.json",
     pgTriggersOutput: "frg-triggers-diff.sql",
+    pgViewsOutput: "frg-views-diff.sql",
     pretty: true,
     verbose: false,
   };
@@ -175,6 +186,16 @@ export function resolveGeneratorOptions(
     cliArgs.pgTriggersExcludeTables,
     config?.pgTriggersExcludeTables,
     excludeTables,
+  );
+  const pgViews = resolveListOption(
+    cliArgs.pgViews,
+    config?.pgViews,
+    defaults.pgViews!,
+  );
+  const pgViewsExclude = resolveOptionalListOption(
+    cliArgs.pgViewsExclude,
+    config?.pgViewsExclude,
+    defaults.pgViewsExclude!,
   );
   const ignoreColumns = resolveOptionalListOption(
     cliArgs.ignoreColumns,
@@ -206,6 +227,8 @@ export function resolveGeneratorOptions(
     schemaDiffExcludeTables,
     pgTriggersTables,
     pgTriggersExcludeTables,
+    pgViews,
+    pgViewsExclude,
     ignoreColumns,
     tablesWhereDataFilters:
       cliArgs.tablesWhereDataFilters ??
@@ -226,12 +249,31 @@ export function resolveGeneratorOptions(
       cliArgs.pgTriggersOutput ??
       config?.pgTriggersOutput ??
       defaults.pgTriggersOutput!,
+    pgViewsOutput:
+      cliArgs.pgViewsOutput ??
+      config?.pgViewsOutput ??
+      defaults.pgViewsOutput!,
     pretty: cliArgs.pretty ?? config?.pretty ?? defaults.pretty!,
     generateSql: cliArgs.generateSql ?? config?.generateSql,
     generatePgTriggers:
       cliArgs.generatePgTriggers ?? config?.generatePgTriggers,
+    generatePgViews: cliArgs.generatePgViews ?? config?.generatePgViews,
     verbose: cliArgs.verbose ?? defaults.verbose!,
   };
+}
+
+function resolveListOption(
+  cliValue: string[] | undefined,
+  configValue: string[] | undefined,
+  fallback: string[],
+): string[] {
+  if (cliValue !== undefined) {
+    return cliValue;
+  }
+  if (configValue !== undefined) {
+    return configValue;
+  }
+  return fallback;
 }
 
 function resolveOptionalListOption(
@@ -326,6 +368,14 @@ export function resolveRuntimeGeneratorOptions(
     );
   }
 
+  let generatePgViews: boolean | undefined;
+  if (options.generatePgViews !== undefined) {
+    generatePgViews = resolveBooleanValue(
+      options.generatePgViews,
+      "generate pg views",
+    );
+  }
+
   return {
     ...options,
     schema: resolveStringValue(options.schema, "schema"),
@@ -347,6 +397,11 @@ export function resolveRuntimeGeneratorOptions(
       options.pgTriggersExcludeTables,
       "pg triggers exclude tables",
     ),
+    pgViews: resolveListValues(options.pgViews, "pg views"),
+    pgViewsExclude: resolveListValues(
+      options.pgViewsExclude,
+      "pg views exclude",
+    ),
     ignoreColumns: resolveListValues(options.ignoreColumns, "ignored columns"),
     sourcePgSsl: resolveBooleanValue(options.sourcePgSsl, "source ssl"),
     destPgSsl: resolveBooleanValue(options.destPgSsl, "destination ssl"),
@@ -367,9 +422,14 @@ export function resolveRuntimeGeneratorOptions(
       options.pgTriggersOutput,
       "pg triggers output file",
     ),
+    pgViewsOutput: resolveStringValue(
+      options.pgViewsOutput,
+      "pg views output file",
+    ),
     pretty: resolveBooleanValue(options.pretty, "pretty-print json"),
     generateSql,
     generatePgTriggers,
+    generatePgViews,
   };
 }
 

@@ -10,11 +10,13 @@ type WritableGeneratorOptions = Omit<
   | "excludeTables"
   | "schemaDiffExcludeTables"
   | "pgTriggersExcludeTables"
+  | "pgViewsExclude"
   | "ignoreColumns"
 > & {
   excludeTables: OptionalListInput;
   schemaDiffExcludeTables: OptionalListInput;
   pgTriggersExcludeTables: OptionalListInput;
+  pgViewsExclude: OptionalListInput;
   ignoreColumns: OptionalListInput;
 };
 
@@ -49,15 +51,19 @@ export function buildConfigFile(
     schemaDiffExcludeTables: generatorOptions.schemaDiffExcludeTables ?? [],
     pgTriggersTables: generatorOptions.pgTriggersTables,
     pgTriggersExcludeTables: generatorOptions.pgTriggersExcludeTables ?? [],
+    pgViews: generatorOptions.pgViews,
+    pgViewsExclude: generatorOptions.pgViewsExclude ?? [],
     ignoreColumns: generatorOptions.ignoreColumns ?? [],
     includeDeletes: generatorOptions.includeDeletes,
     skipMissingPk: generatorOptions.skipMissingPk,
     output: generatorOptions.output,
     schemaDiffOutput: generatorOptions.schemaDiffOutput,
     pgTriggersOutput: generatorOptions.pgTriggersOutput,
+    pgViewsOutput: generatorOptions.pgViewsOutput,
     pretty: generatorOptions.pretty,
     generateSql: generatorOptions.generateSql,
     generatePgTriggers: generatorOptions.generatePgTriggers,
+    generatePgViews: generatorOptions.generatePgViews,
   };
 
   return {

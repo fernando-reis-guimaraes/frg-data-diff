@@ -16,6 +16,7 @@ const commandFiles: Record<string, string> = {
   apply: "apply.js",
   sql: "sql.js",
   "pg-triggers": "pg-triggers.js",
+  "pg-views": "pg-views.js",
 };
 
 const helpText = `frg-data-diff
@@ -30,6 +31,7 @@ Commands:
   apply        Read a JSON diff file and safely apply it to a destination PostgreSQL database.
   sql          Read a JSON diff file and write a plain SQL script for manual review and execution.
   pg-triggers  Compare PostgreSQL triggers and functions and write a SQL diff script.
+  pg-views     Compare PostgreSQL view definitions and write a SQL diff script.
   version      Print the package version.
 
 Basic usage:
@@ -39,6 +41,7 @@ Basic usage:
   npx frg-data-diff apply --execute
   npx frg-data-diff sql --yes
   npx frg-data-diff pg-triggers
+  npx frg-data-diff pg-views
   npx frg-data-diff version
 
 Config file:
@@ -117,6 +120,8 @@ Config file example (.frg-data-diff.config.json):
       "schemaDiffOutput": "frg-schema-diff.json",
       "pgTriggersTables": ["my_table"],
       "pgTriggersOutput": "frg-triggers-diff.sql",
+      "pgViews": ["*"],
+      "pgViewsOutput": "frg-views-diff.sql",
       "includeDeletes": true,
       "pretty": true
     },

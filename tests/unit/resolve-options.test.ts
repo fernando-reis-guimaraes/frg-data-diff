@@ -30,6 +30,8 @@ const baseGeneratorConfig: GeneratorConfig = {
   schemaDiffExcludeTables: ["schema_table_z"],
   pgTriggersTables: ["pg_trigger_table_a", "pg_trigger_table_b"],
   pgTriggersExcludeTables: ["pg_trigger_table_z"],
+  pgViews: ["pg_view_a", "pg_view_b"],
+  pgViewsExclude: ["pg_view_z"],
   ignoreColumns: ["updated_at"],
   tablesWhereDataFilters: {
     directus_presets: '"user" IS NULL',
@@ -39,6 +41,7 @@ const baseGeneratorConfig: GeneratorConfig = {
   output: "config-diff.json",
   schemaDiffOutput: "config-schema-diff.json",
   pgTriggersOutput: "config-triggers-diff.sql",
+  pgViewsOutput: "config-views-diff.sql",
   pretty: true,
   generateSql: true,
 };
@@ -73,11 +76,13 @@ describe("resolveGeneratorOptions", () => {
       "pg_trigger_table_a",
       "pg_trigger_table_b",
     ]);
+    expect(resolved.pgViews).toEqual(["pg_view_a", "pg_view_b"]);
     expect(resolved.includeDeletes).toBe(true);
     expect(resolved.sourcePgSsl).toBe(true);
     expect(resolved.destPgSsl).toBe(false);
     expect(resolved.schemaDiffOutput).toBe("config-schema-diff.json");
     expect(resolved.pgTriggersOutput).toBe("config-triggers-diff.sql");
+    expect(resolved.pgViewsOutput).toBe("config-views-diff.sql");
     expect(resolved.generateSql).toBe(true);
     expect(resolved.tablesWhereDataFilters).toEqual({
       directus_presets: '"user" IS NULL',
@@ -90,11 +95,13 @@ describe("resolveGeneratorOptions", () => {
       output: "cli-diff.json",
       schemaDiffOutput: "cli-schema-diff.json",
       pgTriggersOutput: "cli-triggers-diff.sql",
+      pgViewsOutput: "cli-views-diff.sql",
     });
     expect(resolved.sourcePgHost).toBe("cli-source-host");
     expect(resolved.output).toBe("cli-diff.json");
     expect(resolved.schemaDiffOutput).toBe("cli-schema-diff.json");
     expect(resolved.pgTriggersOutput).toBe("cli-triggers-diff.sql");
+    expect(resolved.pgViewsOutput).toBe("cli-views-diff.sql");
     // Config values are preserved for non-overridden fields
     expect(resolved.sourcePgDatabase).toBe("config_db");
   });
@@ -119,8 +126,11 @@ describe("resolveGeneratorOptions", () => {
     expect(resolved.schemaDiffExcludeTables).toEqual([]);
     expect(resolved.pgTriggersTables).toEqual(["t"]);
     expect(resolved.pgTriggersExcludeTables).toEqual([]);
+    expect(resolved.pgViews).toEqual([]);
+    expect(resolved.pgViewsExclude).toEqual([]);
     expect(resolved.schemaDiffOutput).toBe("frg-schema-diff.json");
     expect(resolved.pgTriggersOutput).toBe("frg-triggers-diff.sql");
+    expect(resolved.pgViewsOutput).toBe("frg-views-diff.sql");
     expect(resolved.pretty).toBe(true);
     expect(resolved.includeDeletes).toBe(true);
     expect(resolved.skipMissingPk).toBe(true);
@@ -135,10 +145,12 @@ describe("resolveGeneratorOptions", () => {
       excludeTables: ["table_b"],
       schemaDiffExcludeTables: ["schema_table_b"],
       pgTriggersExcludeTables: ["pg_trigger_table_b"],
+      pgViewsExclude: ["pg_view_b"],
     });
     expect(resolved.excludeTables).toEqual(["table_b"]);
     expect(resolved.schemaDiffExcludeTables).toEqual(["schema_table_b"]);
     expect(resolved.pgTriggersExcludeTables).toEqual(["pg_trigger_table_b"]);
+    expect(resolved.pgViewsExclude).toEqual(["pg_view_b"]);
   });
 
   it("treats null optional lists as cleared rather than falling back", () => {
@@ -148,12 +160,14 @@ describe("resolveGeneratorOptions", () => {
         excludeTables: ["table_b"],
         schemaDiffExcludeTables: ["schema_table_b"],
         pgTriggersExcludeTables: ["pg_trigger_table_b"],
+        pgViewsExclude: ["pg_view_b"],
         ignoreColumns: ["updated_at"],
       },
       {
         excludeTables: null,
         schemaDiffExcludeTables: null,
         pgTriggersExcludeTables: null,
+        pgViewsExclude: null,
         ignoreColumns: null,
       },
     );
@@ -161,6 +175,7 @@ describe("resolveGeneratorOptions", () => {
     expect(resolved.excludeTables).toEqual([]);
     expect(resolved.schemaDiffExcludeTables).toEqual([]);
     expect(resolved.pgTriggersExcludeTables).toEqual([]);
+    expect(resolved.pgViewsExclude).toEqual([]);
     expect(resolved.ignoreColumns).toEqual([]);
   });
 
@@ -174,6 +189,8 @@ describe("resolveGeneratorOptions", () => {
         schemaDiffExcludeTables: undefined,
         pgTriggersTables: undefined,
         pgTriggersExcludeTables: undefined,
+        pgViews: undefined,
+        pgViewsExclude: undefined,
       },
       {},
     );
@@ -184,6 +201,8 @@ describe("resolveGeneratorOptions", () => {
     expect(resolved.schemaDiffExcludeTables).toEqual(["directus_sessions"]);
     expect(resolved.pgTriggersTables).toEqual(["directus_*"]);
     expect(resolved.pgTriggersExcludeTables).toEqual(["directus_sessions"]);
+    expect(resolved.pgViews).toEqual([]);
+    expect(resolved.pgViewsExclude).toEqual([]);
   });
 
   it("treats empty specialized table lists as unset and falls back to main tables", () => {
@@ -193,12 +212,14 @@ describe("resolveGeneratorOptions", () => {
         tables: ["directus_*"],
         schemaDiffTables: [],
         pgTriggersTables: [],
+        pgViews: [],
       },
       {},
     );
 
     expect(resolved.schemaDiffTables).toEqual(["directus_*"]);
     expect(resolved.pgTriggersTables).toEqual(["directus_*"]);
+    expect(resolved.pgViews).toEqual([]);
   });
 
   it("preserves env-backed list values during merge and expands them at runtime", () => {
@@ -208,6 +229,8 @@ describe("resolveGeneratorOptions", () => {
     process.env.TEST_SCHEMA_EXCLUDES = "schema_z";
     process.env.TEST_PG_TRIGGERS_TABLES = "pg_trigger_a, pg_trigger_b";
     process.env.TEST_PG_TRIGGERS_EXCLUDES = "pg_trigger_z";
+    process.env.TEST_PG_VIEWS = "pg_view_a, pg_view_b";
+    process.env.TEST_PG_VIEWS_EXCLUDES = "pg_view_z";
     process.env.TEST_IGNORES = "updated_at, created_at";
 
     const merged = resolveGeneratorOptions(
@@ -219,6 +242,8 @@ describe("resolveGeneratorOptions", () => {
         schemaDiffExcludeTables: ["$TEST_SCHEMA_EXCLUDES"],
         pgTriggersTables: ["$TEST_PG_TRIGGERS_TABLES"],
         pgTriggersExcludeTables: ["$TEST_PG_TRIGGERS_EXCLUDES"],
+        pgViews: ["$TEST_PG_VIEWS"],
+        pgViewsExclude: ["$TEST_PG_VIEWS_EXCLUDES"],
         ignoreColumns: [],
       },
       {
@@ -235,6 +260,8 @@ describe("resolveGeneratorOptions", () => {
     expect(merged.pgTriggersExcludeTables).toEqual([
       "$TEST_PG_TRIGGERS_EXCLUDES",
     ]);
+    expect(merged.pgViews).toEqual(["$TEST_PG_VIEWS"]);
+    expect(merged.pgViewsExclude).toEqual(["$TEST_PG_VIEWS_EXCLUDES"]);
     expect(merged.ignoreColumns).toEqual(["$TEST_IGNORES"]);
 
     const runtimeResolved = resolveRuntimeGeneratorOptions(merged);
@@ -247,6 +274,8 @@ describe("resolveGeneratorOptions", () => {
       "pg_trigger_b",
     ]);
     expect(runtimeResolved.pgTriggersExcludeTables).toEqual(["pg_trigger_z"]);
+    expect(runtimeResolved.pgViews).toEqual(["pg_view_a", "pg_view_b"]);
+    expect(runtimeResolved.pgViewsExclude).toEqual(["pg_view_z"]);
     expect(runtimeResolved.ignoreColumns).toEqual(["updated_at", "created_at"]);
 
     delete process.env.TEST_TABLES;
@@ -255,6 +284,8 @@ describe("resolveGeneratorOptions", () => {
     delete process.env.TEST_SCHEMA_EXCLUDES;
     delete process.env.TEST_PG_TRIGGERS_TABLES;
     delete process.env.TEST_PG_TRIGGERS_EXCLUDES;
+    delete process.env.TEST_PG_VIEWS;
+    delete process.env.TEST_PG_VIEWS_EXCLUDES;
     delete process.env.TEST_IGNORES;
   });
 
@@ -263,6 +294,7 @@ describe("resolveGeneratorOptions", () => {
     process.env.RUNTIME_OUTPUT = "runtime-diff.json";
     process.env.RUNTIME_SCHEMA_DIFF_OUTPUT = "runtime-schema-diff.json";
     process.env.RUNTIME_PG_TRIGGERS_OUTPUT = "runtime-triggers-diff.sql";
+    process.env.RUNTIME_PG_VIEWS_OUTPUT = "runtime-views-diff.sql";
     process.env.RUNTIME_INCLUDE_DELETES = "yes";
     process.env.RUNTIME_SKIP_MISSING_PK = "no";
     process.env.RUNTIME_PRETTY = "true";
@@ -290,6 +322,7 @@ describe("resolveGeneratorOptions", () => {
         output: "$RUNTIME_OUTPUT",
         schemaDiffOutput: "$RUNTIME_SCHEMA_DIFF_OUTPUT",
         pgTriggersOutput: "$RUNTIME_PG_TRIGGERS_OUTPUT",
+        pgViewsOutput: "$RUNTIME_PG_VIEWS_OUTPUT",
         pretty: "$RUNTIME_PRETTY",
         generateSql: "$RUNTIME_GENERATE_SQL",
       }),
@@ -300,6 +333,7 @@ describe("resolveGeneratorOptions", () => {
     expect(runtimeResolved.schemaDiffTables).toEqual(["schema_a"]);
     expect(runtimeResolved.schemaDiffOutput).toBe("runtime-schema-diff.json");
     expect(runtimeResolved.pgTriggersOutput).toBe("runtime-triggers-diff.sql");
+    expect(runtimeResolved.pgViewsOutput).toBe("runtime-views-diff.sql");
     expect(runtimeResolved.includeDeletes).toBe(true);
     expect(runtimeResolved.skipMissingPk).toBe(false);
     expect(runtimeResolved.pretty).toBe(true);
@@ -311,6 +345,7 @@ describe("resolveGeneratorOptions", () => {
     delete process.env.RUNTIME_OUTPUT;
     delete process.env.RUNTIME_SCHEMA_DIFF_OUTPUT;
     delete process.env.RUNTIME_PG_TRIGGERS_OUTPUT;
+    delete process.env.RUNTIME_PG_VIEWS_OUTPUT;
     delete process.env.RUNTIME_INCLUDE_DELETES;
     delete process.env.RUNTIME_SKIP_MISSING_PK;
     delete process.env.RUNTIME_PRETTY;
