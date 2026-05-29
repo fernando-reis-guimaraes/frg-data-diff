@@ -1,6 +1,6 @@
 {
   "name": "frg-data-diff",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Safe PostgreSQL data diff and apply tooling. Compare data between two PostgreSQL databases and apply changes safely.",
   "bin": "./dist/cli/root.js",
   "scripts": {
