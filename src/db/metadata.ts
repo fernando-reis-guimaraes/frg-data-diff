@@ -45,16 +45,25 @@ async function fetchPrimaryKey(
     constraint_name: string;
   }>(
     `
-    SELECT tc.constraint_name, kcu.column_name, kcu.ordinal_position AS key_seq
-    FROM information_schema.table_constraints tc
-    JOIN information_schema.key_column_usage kcu
-      ON tc.constraint_name = kcu.constraint_name
-      AND tc.table_schema = kcu.table_schema
-      AND tc.table_name = kcu.table_name
-    WHERE tc.constraint_type = 'PRIMARY KEY'
-      AND tc.table_schema = $1
-      AND tc.table_name = $2
-    ORDER BY kcu.ordinal_position
+    SELECT
+      constraint_record.conname AS constraint_name,
+      attribute.attname AS column_name,
+      key_column.ordinality::integer AS key_seq
+    FROM pg_catalog.pg_constraint constraint_record
+    JOIN pg_catalog.pg_class table_record
+      ON table_record.oid = constraint_record.conrelid
+    JOIN pg_catalog.pg_namespace schema_record
+      ON schema_record.oid = table_record.relnamespace
+    JOIN LATERAL unnest(constraint_record.conkey)
+      WITH ORDINALITY AS key_column(attribute_number, ordinality)
+      ON true
+    JOIN pg_catalog.pg_attribute attribute
+      ON attribute.attrelid = constraint_record.conrelid
+      AND attribute.attnum = key_column.attribute_number
+    WHERE constraint_record.contype = 'p'
+      AND schema_record.nspname = $1
+      AND table_record.relname = $2
+    ORDER BY key_column.ordinality
     `,
     [schema, table],
   );
